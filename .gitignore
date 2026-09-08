@@ -1,0 +1,29 @@
+# Environment & Secrets
+.env
+*.env
+*.pem
+*.key
+*.secret
+
+# Databases & Local Backups
+*.db
+*.sqlite
+*.sql
+*.bak
+backups/
+pg_server/
+
+# Python & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# Operating System & IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+scratch/
