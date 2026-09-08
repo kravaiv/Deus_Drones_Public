@@ -1,4 +1,4 @@
-# 🔄 Hardware Traceability, Taxonomy & Lifecycle Specification (Deus Drones ERP)
+# Hardware Traceability, Taxonomy & Lifecycle Specification (Deus Drones ERP)
 
 ---
 

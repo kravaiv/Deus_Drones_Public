@@ -1,4 +1,4 @@
-# 🛡️ Security, Governance & Reliability Architecture (Deus Drones ERP)
+# Security, Governance & Reliability Architecture (Deus Drones ERP)
 
 ---
 

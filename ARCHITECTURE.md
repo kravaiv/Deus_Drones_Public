@@ -1,4 +1,4 @@
-# 🏛️ System Architecture Specification (Deus Drones ERP)
+# System Architecture Specification (Deus Drones ERP)
 > **Standard: IEEE 1016-2009 Systems Design Description (SDD)**
 
 ---

@@ -1,12 +1,18 @@
-# 🛸 Deus Drones ERP
+# DEUS DRONES ERP: SYSTEM ARCHITECTURE & TRACEABILITY SPECIFICATION
 > **Enterprise Resource Planning, Hardware BOM Assembly, and End-to-End Component Traceability Platform for Unmanned Aerial Systems (UAS)**
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16.1_Relational-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org)
-[![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0_ORM-D71F00?logo=sqlalchemy&logoColor=white)](https://www.sqlalchemy.org)
-[![Architecture](https://img.shields.io/badge/Architecture-Modular_Monolith-blue)](ARCHITECTURE.md)
-[![Security](https://img.shields.io/badge/Security-RBAC_%26_Tokenized_QR-E53E3E)](SECURITY_AND_RELIABILITY.md)
-[![PWA Ready](https://img.shields.io/badge/PWA-Mobile_Ready-5A0FC8?logo=pwa&logoColor=white)](/)
+[![Standard](https://img.shields.io/badge/Standard-IEEE%201016-purple.svg)]()
+[![Scope](https://img.shields.io/badge/Scope-Architecture%20%26%20Design%20Specs-blue.svg)]()
+[![Architecture](https://img.shields.io/badge/Architecture-Modular%20Monolith-blue.svg)]()
+[![Security](https://img.shields.io/badge/Security-STRIDE%20%26%20RBAC-red.svg)]()
+[![Storage](https://img.shields.io/badge/Storage-PostgreSQL%2016%20ACID-orange.svg)]()
+
+---
+
+> [!NOTE]
+> **Repository Scope & Architectural Showcase**:  
+> This repository serves as a **System Architecture & Technical Specifications Showcase** presenting the engineering design, domain boundaries, finite state machines, threat modeling, and data models of the Deus Drones ERP platform.  
+> Production deployment code, proprietary hardware schematics, and operational database migrations are maintained in an enterprise private repository under organizational access control.
 
 ---
 
@@ -144,6 +150,6 @@ The system enforces the Principle of Least Privilege (PoLP) across three standar
 
 For exhaustive technical specifications, refer to the respective architectural blueprints:
 
-- 🏛️ **[System Architecture Specification](ARCHITECTURE.md)** — IEEE 1016 design document, ER diagrams, atomic transaction models, and sequence workflows.
-- 🔄 **[Traceability & Hardware Lifecycle](TRACEABILITY_AND_LIFECYCLE.md)** — Dual-mode inventory models, G0–G3 readiness finite state machines, and component genealogy.
-- 🛡️ **[Security, Governance & Resilience](SECURITY_AND_RELIABILITY.md)** — Threat modeling (STRIDE), QR tokenization architecture, RBAC implementation, and disaster recovery.
+- **[System Architecture Specification](ARCHITECTURE.md)** — IEEE 1016 design document, ER diagrams, atomic transaction models, and sequence workflows.
+- **[Traceability & Hardware Lifecycle](TRACEABILITY_AND_LIFECYCLE.md)** — Dual-mode inventory models, G0–G3 readiness finite state machines, and component genealogy.
+- **[Security, Governance & Resilience](SECURITY_AND_RELIABILITY.md)** — Threat modeling (STRIDE), QR tokenization architecture, RBAC implementation, and disaster recovery.
