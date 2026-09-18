@@ -144,7 +144,28 @@ graph TD
 
 ---
 
-## 5. Related Technical Specifications
+## 5. Production Request & Order Lifecycle (CRM FSM)
+
+In addition to physical airframe state machines, inbound customer requests follow a formal Finite State Machine governing workshop throughput and field delivery:
+
+```mermaid
+stateDiagram-v2
+    [*] --> NEW: Mission / Operational Order Created
+    NEW --> IN_PROGRESS: Parts Allocated & Bench Assembly Initiated
+    IN_PROGRESS --> READY: Airframe QA Tested & Assigned Readiness Class G0
+    READY --> ISSUED: Transferred to End-User Unit (Issue/Return Linked)
+    ISSUED --> [*]
+```
+
+### Stage Transitions:
+1. **`NEW`**: Registered requirement containing requested quantities, airframe specifications, target completion date, and priority tag (`LOW`, `NORMAL`, `URGENT`, `CRITICAL`).
+2. **`IN_PROGRESS`**: Assigned to lead assembly technician. Sub-component BOM reservation is confirmed in inventory.
+3. **`READY`**: Airframe assembly completed, benchmark telemetry validated, and completion timestamp recorded. Unit enters warehouse in `G0` (Mission Ready) status.
+4. **`ISSUED`**: Physical custody transfer completed. Generating an official custody transfer record links the order directly to the fleet operations journal.
+
+---
+
+## 6. Related Technical Specifications
 
 - 📄 **[System Landing & Project Overview](README.md)**
 - 🏛️ **[System Architecture Specification](ARCHITECTURE.md)**

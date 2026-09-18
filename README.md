@@ -49,6 +49,11 @@ The inventory engine categorizes equipment into **14 standardized hardware domai
 - **Append-Only Audit Trail:** Detailed mutation logging capturing actor ID, timestamp, client network address, mutated entity, and full JSON payload state deltas.
 - **Controlled Taxonomies:** Critical categorical fields (`Readiness Class`, `Operational Condition`, `Completeness`) are strictly constrained to predefined database enums, blocking arbitrary user text input.
 
+### 2.5. Order Orchestration & Workshop Dispatch (CRM)
+- **Lifecycle Finite State Machine:** Deterministic progression through validated operational stages: `NEW` -> `IN_PROGRESS` -> `READY` -> `ISSUED`.
+- **Financial & Margin Governance:** Real-time tracking of component BOM cost (`cost_price`), customer quotation (`customer_price`), gross margin, and profitability metrics.
+- **Collision-Free Number Generation:** Transactional advisory locking (`pg_advisory_xact_lock`) eliminates sequence race conditions across concurrent multi-user terminals.
+
 ---
 
 ## 3. High-Level Architecture
@@ -64,7 +69,7 @@ graph TD
     end
 
     subgraph Application [Application & Security Layer]
-        API["FastAPI REST API Gateway"]
+        API["FastAPI REST API Gateway (/api/v1)"]
         Auth["Security Provider (OAuth2 JWT / Bcrypt Passlib)"]
         RBAC["RBAC Policy Enforcement Dependency"]
         Audit["Immutable Audit Logger (Audit Trail)"]
@@ -73,14 +78,17 @@ graph TD
     subgraph Domain [Domain Services Layer]
         InvSvc["Inventory Ledger Service"]
         BOMSvc["Atomic BOM Assembly Engine"]
+        OrderSvc["Order Dispatch & CRM Service"]
+        FinSvc["Financial Valuation Engine"]
         OpSvc["Custodial Operations & Repair Service"]
+        SysSvc["System Backup & Recovery Service"]
         ExportSvc["Reporting & Export Service (OpenPyXL)"]
     end
 
     subgraph Persistence [Data & Concurrency Layer]
         ORM["SQLAlchemy 2.0 (Transactional Unit of Work)"]
-        LockMgr["Row-Level Lock Manager (SELECT ... FOR UPDATE)"]
-        PG[("PostgreSQL 16 Relational Engine (11 Tables, ACID, WAL)")]
+        LockMgr["Row-Level & Advisory Lock Manager"]
+        PG[("PostgreSQL 16 Relational Engine (12 Tables, ACID, WAL)")]
     end
 
     PWA --> SW
@@ -91,11 +99,17 @@ graph TD
     API --> Audit
     API --> InvSvc
     API --> BOMSvc
+    API --> OrderSvc
+    API --> FinSvc
     API --> OpSvc
+    API --> SysSvc
     API --> ExportSvc
     InvSvc --> ORM
     BOMSvc --> ORM
+    OrderSvc --> ORM
+    FinSvc --> ORM
     OpSvc --> ORM
+    SysSvc --> ORM
     ExportSvc --> ORM
     ORM --> LockMgr
     LockMgr --> PG
@@ -127,9 +141,12 @@ The system enforces the Principle of Least Privilege (PoLP) across three standar
 | Read Inventory Registry & Search | ✅ | ✅ | ✅ |
 | Scan & Resolve Optical QR Codes | ✅ | ✅ | ✅ |
 | Execute Custody Check-out / Check-in | ✅ | ✅ | ✅ |
+| Create & Transition Orders (`NEW` -> `IN_PROGRESS` -> `READY` -> `ISSUED`) | ✅ | ✅ | ✅ |
 | Submit Depot Repair Tickets | ✅ | ✅ | ✅ |
 | Execute BOM Airframe Assemblies | ❌ | ✅ | ✅ |
 | Create / Decommission Inventory SKUs | ❌ | ✅ | ✅ |
+| Govern Order Quotations, Costs & Margins | ❌ | ✅ | ✅ |
+| Inspect Financial Analytics & Valuation | ❌ | ✅ | ✅ |
 | Export Analytical Reports & Transfer Deeds | ❌ | ✅ | ✅ |
 | Inspect Immutable Audit Trail Logs | ❌ | ✅ | ✅ |
 | Manage User Credentials & Roles | ❌ | ❌ | ✅ |

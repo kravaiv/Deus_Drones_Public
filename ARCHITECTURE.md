@@ -37,15 +37,18 @@ graph TD
     subgraph Domain [Domain & Service Tier]
         ItemService["Item & Inventory Ledger Service"]
         BOMService["BOM Assembly Orchestration Engine"]
+        OrderService["Order Dispatch & CRM Service"]
+        FinService["Financial Valuation Engine"]
         CustodyService["Custodial Movement Service (Issue/Return)"]
         RepairService["Maintenance & Overhaul Service"]
+        BackupService["System Backup & Recovery Service"]
         ExportService["Document & Spreadsheet Generation Service"]
     end
 
     subgraph Persistence [Data Persistence Tier]
         UnitOfWork["SQLAlchemy 2.0 Session / Unit of Work"]
-        Locking["Row Lock Manager (SELECT ... FOR UPDATE)"]
-        PostgreSQL[("PostgreSQL 16 Relational Engine (11 Normalized Tables)")]
+        Locking["Row & Advisory Lock Manager"]
+        PostgreSQL[("PostgreSQL 16 Relational Engine (12 Normalized Tables)")]
     end
 
     PWA --> SW
@@ -56,13 +59,19 @@ graph TD
     RBAC --> AuditMW
     AuditMW --> ItemService
     AuditMW --> BOMService
+    AuditMW --> OrderService
+    AuditMW --> FinService
     AuditMW --> CustodyService
     AuditMW --> RepairService
+    AuditMW --> BackupService
     AuditMW --> ExportService
     ItemService --> UnitOfWork
     BOMService --> UnitOfWork
+    OrderService --> UnitOfWork
+    FinService --> UnitOfWork
     CustodyService --> UnitOfWork
     RepairService --> UnitOfWork
+    BackupService --> UnitOfWork
     ExportService --> UnitOfWork
     UnitOfWork --> Locking
     Locking --> PostgreSQL
@@ -72,7 +81,7 @@ graph TD
 
 ## 3. Relational Schema & Entity-Relationship Model
 
-The PostgreSQL database encompasses **11 relational tables** enforcing strict relational constraints:
+The PostgreSQL database encompasses **12 relational tables** enforcing strict relational constraints:
 
 ```mermaid
 erDiagram
@@ -212,6 +221,25 @@ erDiagram
         string user_agent
         datetime created_at
     }
+
+    Order {
+        int id PK
+        string order_number UK
+        string customer
+        string order_type
+        string status "NEW, IN_PROGRESS, READY, ISSUED"
+        string priority "LOW, NORMAL, URGENT, CRITICAL"
+        date target_date
+        date completed_date
+        string assigned_to
+        string delivery_contacts
+        decimal cost_price
+        decimal customer_price
+        text items_json
+        text note
+        datetime created_at
+        datetime updated_at
+    }
 ```
 
 ---
@@ -223,6 +251,7 @@ In a high-intensity assembly workshop, race conditions present significant risk.
 - Concurrent issuance and decommissioning of the same hardware unit.
 - Simultaneous bulk stock deductions exceeding actual shelf balance.
 
+### 4.1. Pessimistic Row-Level Locking
 To guarantee zero negative stock and eliminate "lost update" anomalies, the system implements **Pessimistic Row-Level Locking** via SQLAlchemy `with_for_update()` on PostgreSQL:
 
 ```python
@@ -244,6 +273,18 @@ with session.begin():
     else:
         # Atomic status mutation for piece-wise serialized assets
         item.status = TargetStatusEnum.IN_REPAIR
+```
+
+### 4.2. Transactional Advisory Locking for Sequence Generation
+Sequential identifiers (such as order numbers `ORD-YYYY-XXXX`) require monotonic serialization across concurrent database transactions. Standard `SELECT MAX(...)` patterns suffer from race conditions under load. The engine implements PostgreSQL transactional advisory locks:
+
+```python
+# Acquire advisory transaction lock scoped to hashing key
+db.execute(
+    text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+    {"lock_key": "order_seq_lock"}
+)
+# Safely compute next sequence number without duplicate key collisions
 ```
 
 ### Locking Guarantees:
@@ -300,7 +341,26 @@ sequenceDiagram
 
 ---
 
-## 6. Environmental Independence & Deployment Architecture
+## 6. Customer Request & Order Dispatch Lifecycle (CRM FSM)
+
+The Order Orchestration module coordinates multi-stage production schedules, parts procurement requests, and field team delivery:
+
+```mermaid
+stateDiagram-v2
+    [*] --> NEW: Request Inbound (POST /api/v1/orders)
+    NEW --> IN_PROGRESS: Technician Claim & Workbench Allocation (PATCH /status)
+    IN_PROGRESS --> READY: Airframe Assembled & Passed Quality Inspection
+    READY --> ISSUED: Custodial Dispatch to Field Unit (Completed)
+    ISSUED --> [*]
+```
+
+### Operational Attributes:
+- **`cost_price` vs `customer_price`**: Real-time evaluation of component acquisition cost against mission allocation budget, dynamically calculating gross operational margins.
+- **Atomic Sequence Governance**: Concurrency protection guarantees unique identifiers (`ORD-YYYY-XXXX`) across multi-terminal inputs without database deadlocks.
+
+---
+
+## 7. Environmental Independence & Deployment Architecture
 
 1. **Path Portability:** Zero absolute filesystem paths exist within the application source code. Dynamic directory derivation uses Python standard `pathlib.Path(__file__).resolve().parent`.
 2. **Stateless App Architecture:** The FastAPI backend does not store session state in server memory; authentication is maintained via cryptographically verified JSON Web Tokens (JWT).
@@ -308,7 +368,7 @@ sequenceDiagram
 
 ---
 
-## 7. Related Technical Specifications
+## 8. Related Technical Specifications
 
 - 📄 **[System Landing & Project Overview](README.md)**
 - 🔄 **[Traceability & Hardware Lifecycle](TRACEABILITY_AND_LIFECYCLE.md)**

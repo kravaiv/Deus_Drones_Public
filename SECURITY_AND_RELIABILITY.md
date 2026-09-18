@@ -91,8 +91,11 @@ def require_role(allowed_roles: list[RoleEnum]):
 | **Read Inventory Registry** (`/api/v1/items`) | `GET` | ✅ | ✅ | ✅ |
 | **Resolve Item by QR Token** (`/api/v1/items/by-token/*`) | `GET` | ✅ | ✅ | ✅ |
 | **Check-out / Check-in Asset** (`/operations/issue-return`) | `POST` | ✅ | ✅ | ✅ |
+| **Create / Transition Orders** (`/api/v1/orders`, `/status`) | `POST`, `PATCH` | ✅ | ✅ | ✅ |
 | **Create Maintenance Ticket** (`/operations/repair`) | `POST` | ✅ | ✅ | ✅ |
 | **Close Maintenance Ticket** (`/operations/repair/{id}/close`) | `POST` | ✅ | ✅ | ✅ |
+| **Govern Order Costs & Margins** (`/api/v1/orders/*`) | `PUT`, `DELETE` | ❌ | ✅ | ✅ |
+| **Inspect Financial Analytics** (`/api/v1/finance/stats`) | `GET` | ❌ | ✅ | ✅ |
 | **Execute BOM Assembly** (`/api/v1/assembly/build`) | `POST` | ❌ | ✅ | ✅ |
 | **Create / Edit Inventory SKU** (`/api/v1/items`) | `POST`, `PUT` | ❌ | ✅ | ✅ |
 | **Decommission / Scrapping** (`/operations/write-off`) | `POST` | ❌ | ✅ | ✅ |
@@ -100,7 +103,8 @@ def require_role(allowed_roles: list[RoleEnum]):
 | **Export Registry to Excel** (`/api/v1/export/excel`) | `GET` | ❌ | ✅ | ✅ |
 | **Inspect Audit Trail** (`/api/v1/audit`) | `GET` | ❌ | ✅ | ✅ |
 | **User Account Administration** (`/api/v1/users/*`) | `ALL` | ❌ | ❌ | ✅ |
-| **Trigger System Backups** (`/api/v1/system/backup`) | `POST` | ❌ | ❌ | ✅ |
+| **Trigger System Backup** (`/api/v1/system/backup`) | `POST` | ❌ | ❌ | ✅ |
+| **Restore Database Snapshot** (`/api/v1/system/restore/*`) | `POST` | ❌ | ❌ | ✅ |
 
 ---
 
@@ -131,7 +135,8 @@ graph LR
 ### Audit Record Schema:
 - **`actor_id`:** Relational foreign key referencing the executing user account.
 - **`client_ip` & `user_agent`:** Network origin metadata for forensic attribution.
-- **`action`:** Deterministic operation tag (`ITEM_CREATED`, `CUSTODY_ISSUED`, `MAINTENANCE_CLOSED`, `ASSEMBLY_EXECUTED`).
+- **`action`:** Deterministic operation tag (`ITEM_CREATED`, `CUSTODY_ISSUED`, `MAINTENANCE_CLOSED`, `ASSEMBLY_EXECUTED`, `ORDER_STATUS_CHANGED`).
+- **`entity_code` & Sanitization:** String identifiers capped at 64 characters to eliminate `StringDataRightTruncation` exceptions across variable-length component SKUs.
 - **`old_state` & `new_state`:** Full JSONB structured snapshots capturing exact property deltas.
 - **Immutability Guarantee:** No `UPDATE` or `DELETE` API endpoints exist for `audit_logs`. Database triggers or restricted user grants prevent retroactive modification.
 
