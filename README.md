@@ -1,0 +1,172 @@
+# DEUS DRONES ERP: SYSTEM ARCHITECTURE & TRACEABILITY SPECIFICATION
+> **Enterprise Resource Planning, Hardware BOM Assembly, and End-to-End Component Traceability Platform for Autonomous Drone Systems & Multirotor Platforms**
+
+[![Specification](https://img.shields.io/badge/Specification-IEEE%201016%20Conventions-purple.svg)]()
+[![Scope](https://img.shields.io/badge/Scope-Architecture%20%26%20Design%20Specs-blue.svg)]()
+[![Architecture](https://img.shields.io/badge/Architecture-Modular%20Monolith-blue.svg)]()
+[![Security](https://img.shields.io/badge/Security-STRIDE%20%26%20RBAC-red.svg)]()
+[![Storage](https://img.shields.io/badge/Storage-PostgreSQL%20ACID-orange.svg)]()
+
+---
+
+> [!NOTE]
+> **Repository Scope & Architectural Showcase**:  
+> This repository serves as a **System Architecture & Technical Specifications Showcase** presenting the engineering design, domain boundaries, finite state machines, threat modeling, and data models of the Deus Drones ERP platform.  
+> Production deployment code, proprietary hardware schematics, and operational database migrations are maintained in an enterprise private repository under organizational access control.
+
+---
+
+## 1. Executive Summary
+
+**Deus Drones ERP** is an industrial-grade enterprise inventory, assembly, and lifecycle traceability system engineered for high-throughput drone manufacturing workshops, avionics integration labs, and rapid maintenance facilities.
+
+The platform addresses critical supply chain and engineering bottlenecks in multi-tier hardware production:
+- **Zero-Loss Part Traceability:** Strict forward and backward tracking of discrete avionics components (flight controllers, ESC stacks, VTX transmitters, optical payloads, motors) from inbound procurement to specific assembled platforms.
+- **Atomic BOM Assembly:** Transactional Bill of Materials (BOM) execution preventing inventory desynchronization and component double-spending during concurrent workshop operations.
+- **Readiness State Governance:** A standardized Finite State Machine (FSM) governing operational readiness (`G0` to `G3`) and maintenance lifecycles.
+- **Optical Identification:** Anti-enumeration, cryptographically tokenized QR codes for rapid mobile camera scanning in workshop environments.
+
+---
+
+## 2. Core Functional Modules
+
+### 2.1. Dual-Mode Inventory Ledger
+The inventory engine categorizes equipment into **14 standardized hardware domains**, operating under two distinct mathematical accounting models:
+- **Piece-wise Serialized Accounting (`PIECE`):** Unique serial serialization with individual unit records, dedicated QR verification tokens, and strict 1-to-1 operational assignment (e.g., assembled drones, specialized optical payloads, radio ground stations).
+- **Bulk Batch Accounting (`BULK`):** Grouped inventory managed by fractional decimal quantities, shared SKU/QR codes, and atomic deductions during assembly or maintenance (e.g., motors, structural carbon components, wiring harnesses, RF antennas).
+
+### 2.2. Atomic Bill of Materials (BOM) Assembly Engine
+- **Predefined Engineering Templates:** Standardized BOM recipes for fixed configurations (e.g., 7-inch multirotor units, 10-inch heavy payload carriers, optical inspection platforms).
+- **Multi-Table Atomic Deductions:** Dynamic selection of serialized avionics modules combined with bulk stock reductions executed within a single database transaction (`SELECT ... FOR UPDATE` isolation).
+- **Referential Protection (`ON DELETE RESTRICT`):** Assembled platforms retain permanent relational links to all consumed sub-assemblies, preventing accidental ledger deletion.
+
+### 2.3. Operational Movement & Fleet Maintenance
+- **Operational Assignments:** Real-time check-out / check-in logging with timestamped custodial assignments.
+- **Automated Overdue Enforcement:** Continuous calculation of delinquent return schedules against designated operational return dates.
+- **Workshop Maintenance Journal:** Granular failure logging, repair cost calculation, component swap tracking, and post-service readiness reclassification.
+
+### 2.4. Governance & Append-Only (Application-Level) Audit Logging
+- **Append-Only Audit Trail:** Detailed mutation logging capturing actor ID, timestamp, client network address, mutated entity, and full JSON payload state deltas.
+- **Controlled Taxonomies:** Critical categorical attributes (`Readiness Class`, `Operational Condition`, `Completeness`) are strictly constrained to predefined database enums, blocking arbitrary user text input.
+
+### 2.5. Order Orchestration & Workshop Dispatch (CRM)
+- **Lifecycle Finite State Machine:** Deterministic progression through validated operational stages: `NEW` -> `IN_PROGRESS` -> `READY` -> `ISSUED`.
+- **Financial & Margin Governance:** Real-time tracking of component BOM cost (`cost_price`), customer quotation (`customer_price`), gross margin, and profitability metrics.
+- **Collision-Free Number Generation:** Transactional advisory locking (`pg_advisory_xact_lock`) eliminates sequence race conditions across concurrent multi-user terminals.
+
+---
+
+## 3. High-Level Architecture
+
+The platform is designed as an enterprise **Modular Monolith** prioritizing operational resilience, deterministic state management, and rapid deployment.
+
+```mermaid
+graph TD
+    subgraph Presentation [Presentation Layer]
+        PWA["PWA Web Client (Vanilla ES6+ / Responsive CSS Grid)"]
+        SW["Service Worker (App Shell Cache & Network-First Gateway)"]
+        Scan["Hardware Camera QR Scanner (Html5-QRCode)"]
+    end
+
+    subgraph Application [Application & Security Layer]
+        API["FastAPI REST API Gateway"]
+        Auth["Security Provider (OAuth2 JWT / Adaptive Hashing)"]
+        RBAC["RBAC Policy Enforcement Dependency"]
+        Audit["Append-Only Audit Logger (Audit Trail)"]
+    end
+
+    subgraph Domain [Domain Services Layer]
+        InvSvc["Inventory Ledger Service"]
+        BOMSvc["Atomic BOM Assembly Engine"]
+        OrderSvc["Order Dispatch & CRM Service"]
+        FinSvc["Financial Valuation Engine"]
+        OpSvc["Operational Movement & Repair Service"]
+        SysSvc["System Backup & Recovery Service"]
+        ExportSvc["Reporting & Export Service (OpenPyXL)"]
+    end
+
+    subgraph Persistence [Data & Concurrency Layer]
+        ORM["SQLAlchemy 2.0 (Transactional Unit of Work)"]
+        LockMgr["Row-Level & Advisory Lock Manager"]
+        PG[("PostgreSQL Relational Engine (12 Tables, ACID, WAL)")]
+    end
+
+    PWA --> SW
+    Scan --> PWA
+    SW --> API
+    API --> Auth
+    API --> RBAC
+    API --> Audit
+    API --> InvSvc
+    API --> BOMSvc
+    API --> OrderSvc
+    API --> FinSvc
+    API --> OpSvc
+    API --> SysSvc
+    API --> ExportSvc
+    InvSvc --> ORM
+    BOMSvc --> ORM
+    OrderSvc --> ORM
+    FinSvc --> ORM
+    OpSvc --> ORM
+    SysSvc --> ORM
+    ExportSvc --> ORM
+    ORM --> LockMgr
+    LockMgr --> PG
+```
+
+---
+
+## 4. Technical Stack
+
+| Tier | Technology | Technical Purpose |
+|---|---|---|
+| **Backend Engine** | Python 3.11+, FastAPI, Starlette | High-performance asynchronous REST API framework |
+| **ORM & Concurrency** | SQLAlchemy 2.0, PostgreSQL Driver | Declarative relational schema, session lifecycle, row-level locks |
+| **Database Engine** | PostgreSQL (ACID, WAL enabled) | Relational storage with strict foreign keys and check constraints |
+| **Authentication & RBAC** | OAuth2 Password Bearer, signed JWT, adaptive password hashing | Stateless cryptographic session tokens and role gating |
+| **Client UI Shell** | HTML5, CSS3 Variables, Vanilla JavaScript (ES6) | Framework-less, dependency-free responsive interface |
+| **Mobile Integration** | Service Worker, Web App Manifest | Installable Progressive Web Application (PWA) with offline shell |
+| **Optical Identification** | Html5-QRCode, QRCode.js | Client-side cryptographic QR generation and camera decoding |
+| **Document Generation** | OpenPyXL, Print-Optimized CSS | Structured spreadsheet exports and standardized technical transfer forms |
+
+---
+
+## 5. Role-Based Access Control (RBAC)
+
+The system enforces the Principle of Least Privilege (PoLP) across three standardized operational roles:
+
+| Operational Capability | Worker (`worker`) | Lead Technician (`leader`) | Administrator (`admin`) |
+|---|:---:|:---:|:---:|
+| Read Inventory Registry & Search | ✅ | ✅ | ✅ |
+| Scan & Resolve Optical QR Tokens | ✅ | ✅ | ✅ |
+| Execute Assignment Check-out / Check-in | ✅ | ✅ | ✅ |
+| Create & Transition Orders (`NEW` -> `IN_PROGRESS` -> `READY` -> `ISSUED`) | ✅ | ✅ | ✅ |
+| Submit Workshop Repair Tickets | ✅ | ✅ | ✅ |
+| Execute BOM Platform Assemblies | ❌ | ✅ | ✅ |
+| Create / Retire Inventory SKUs | ❌ | ✅ | ✅ |
+| Govern Order Quotations, Costs & Margins | ❌ | ✅ | ✅ |
+| Inspect Financial Analytics & Valuation | ❌ | ✅ | ✅ |
+| Export Analytical Reports & Transfer Deeds | ❌ | ✅ | ✅ |
+| Inspect Append-Only Audit Trail Logs | ❌ | ✅ | ✅ |
+| Manage User Accounts & Roles | ❌ | ❌ | ✅ |
+| Trigger Database Backups & Restores | ❌ | ❌ | ✅ |
+
+---
+
+## 6. Reliability & Disaster Recovery Highlights
+
+- **Concurrency Protection:** Row-level locks (`SELECT ... FOR UPDATE`) eliminate lost updates during simultaneous multi-terminal inventory operations.
+- **Recovery Point Objective (RPO) Design Target:** $< 24$ hours via automated nightly logical backup execution.
+- **Recovery Time Objective (RTO) Design Target:** $< 15$ minutes via automated database restore pipelines.
+- **Retention & Backup Rotation:** Automated 7-snapshot rolling retention pool with integrity logging.
+
+---
+
+## 7. Specifications & Documentation Index
+
+For exhaustive technical specifications, refer to the respective architectural blueprints:
+
+- **[System Architecture Specification](ARCHITECTURE.md)** — Structured following IEEE 1016 SDD conventions, ER diagrams, atomic transaction models, and sequence workflows.
+- **[Traceability & Hardware Lifecycle](TRACEABILITY_AND_LIFECYCLE.md)** — Dual-mode inventory models, G0–G3 readiness finite state machines, and component genealogy.
+- **[Security, Governance & Resilience](SECURITY_AND_RELIABILITY.md)** — Threat modeling (STRIDE), QR tokenization architecture, RBAC implementation, and disaster recovery.
